@@ -35,4 +35,10 @@ object MasterMain extends App {
   scala.io.StdIn.readLine()
   // Launch Nginx
   master ! MasterActor.Create(DockerService("nginx", "nginx:latest", Map((80, 80))))
+  // Info Nginx
+  scala.io.StdIn.readLine()
+  master ! MasterActor.Info("nginx")
+  // Stop Nginx
+  scala.io.StdIn.readLine()
+  master ! MasterActor.Destroy("nginx")
 }

@@ -1,10 +1,11 @@
 package com.github.roberveral.dockerakka.actors
 
-import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, ActorRef, Props}
 import akka.util.Timeout
-import com.github.roberveral.dockerakka.utils.DockerService
+import com.github.roberveral.dockerakka.utils.{DockerService, ServiceInfo}
 import com.github.roberveral.dockerakka.utils.placement.PlacementStrategy
+
+import scala.concurrent.Future
 
 /**
   * A MasterActor orchestrates and manages the Docker services launched,
@@ -22,6 +23,15 @@ object MasterActor {
   // Message API definition
   // Creates and launches a new DockerService in the system.
   case class Create(service: DockerService)
+
+  // Destroys a running DockerService
+  case class Destroy(name: String)
+
+  // Gets the info of a running service
+  case class Info(name: String)
+
+  // Mesage used to get info of all running services
+  case object AllInfo
 
 }
 
@@ -56,6 +66,15 @@ class MasterActor(workers: Seq[ActorRef], placementStrategy: PlacementStrategy)(
         log.info("{} created in worker {}", service, actor.path)
       })
     }
+    case Info(name) => workers.foreach(_ forward WorkerActor.Info(name))
+    case AllInfo =>
+      import akka.pattern.ask
+      import akka.pattern.pipe
+      // Collects the info from each worker
+      val workerInfo: Seq[Future[Iterable[ServiceInfo]]] = workers.map(_.ask(WorkerActor.AllInfo).mapTo[Iterable[ServiceInfo]])
+      // Pipes the info to the sender
+      pipe(Future.sequence(workerInfo)) to sender()
+    case Destroy(name) => workers.foreach(_ ! WorkerActor.Stop(name))
   }
 
   override def receive: Receive = receive(placementStrategy)

@@ -2,11 +2,11 @@ package com.github.roberveral.dockerakka.actors
 
 import java.util
 
-import akka.actor.Actor.Receive
 import akka.actor.{Actor, ActorLogging, PoisonPill, Props}
-import com.github.roberveral.dockerakka.utils.DockerService
+import com.github.roberveral.dockerakka.actors.ServiceActor.{Cancel, DockerError, Info}
+import com.github.roberveral.dockerakka.utils.{DockerService, ServiceInfo}
 import com.spotify.docker.client.DefaultDockerClient
-import com.spotify.docker.client.messages.{ContainerConfig, HostConfig, PortBinding}
+import com.spotify.docker.client.messages.{ContainerConfig, ContainerCreation, HostConfig, PortBinding}
 
 import collection.JavaConverters._
 import scala.concurrent.Future
@@ -19,6 +19,16 @@ import scala.concurrent.Future
   */
 object ServiceActor {
   def props(service: DockerService) = Props(new ServiceActor(service))
+
+  // Cancel Message
+  case object Cancel
+
+  // Info Message
+  case object Info
+
+  // Docker error message
+  case class DockerError(e: Exception)
+
 }
 
 /**
@@ -50,31 +60,65 @@ class ServiceActor(service: DockerService) extends Actor with ActorLogging {
       .exposedPorts(service.portMapping.values.map(_.toString).toSet.asJava)
       .hostConfig(hostConfig).build()
 
+  // Creates the container of the service
+  val containerCreation: Future[ContainerCreation] = Future {
+    // Obtains the images (or check if exists)
+    dockerClient.pull(service.image)
+    dockerClient.createContainer(containerConfig, service.name)
+  }
+
   // Launch the service in Docker as a Scala Future
   launchService()
 
   def launchService(): Unit = {
-    Future {
-      // Obtains the images (or check if exists)
-      dockerClient.pull(service.image)
-      // Creates the container of the service
-      val containerCreation = dockerClient.createContainer(containerConfig, service.name)
+    containerCreation.map((container) => {
       // Starts the container
-      dockerClient.startContainer(containerCreation.id())
+      dockerClient.startContainer(container.id())
       // Attach to its result
-      val res = dockerClient.waitContainer(containerCreation.id())
+      val res = dockerClient.waitContainer(container.id())
       // In case of error throw a Exception
       if (res.statusCode() != 0) throw new RuntimeException("StatusCode: " + res.statusCode())
-    }.onFailure {
-      case e => {
-        // In case of failure the Actor kills itself
-        log.error("{} failed. Reason: {}", service.name, e.getMessage)
-        self ! PoisonPill
-      }
+    }).onFailure {
+      // In case of failure, a DockerError message is sended to the actor to throw the failure
+      // from the main thread, allowing supervision
+      case e: Exception => self ! DockerError(e)
     }
   }
 
   override def receive: Receive = {
+    case Cancel => {
+      containerCreation.map((container) => {
+        // Kill the running container
+        dockerClient.killContainer(container.id())
+
+        // Remove the container
+        dockerClient.removeContainer(container.id())
+      }).onComplete(_ => {
+        log.info("{} destroyed.", service.name)
+        // Finally, kill the actor
+        self ! PoisonPill
+      })
+    }
+    case Info => {
+      containerCreation.map((container) => {
+        // Gets information detail of the container by running Docker inspect
+        val info = dockerClient.inspectContainer(container.id()).toString
+        log.info("Info response: {}", ServiceInfo(service, info))
+        // Returns information to the sender
+        sender ! ServiceInfo(service, info)
+      })
+    }
+    case DockerError(e) => {
+      // Throw the exception (let it crash)
+      log.error("{} execution failed.", service.name)
+      throw e
+    }
     case _ => log.info("{} container currently launched.", service.name)
+  }
+
+  @scala.throws[Exception](classOf[Exception])
+  override def postStop(): Unit = {
+    dockerClient.close()
+    super.postStop()
   }
 }
