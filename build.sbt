@@ -11,6 +11,8 @@ libraryDependencies ++= {
     "com.typesafe.akka" %%  "akka-slf4j"              % akkaVersion,
 
     "com.typesafe.akka" %%  "akka-remote"             % akkaVersion,
+    "com.typesafe.akka" %%  "akka-cluster"            % akkaVersion,
+    "com.typesafe.akka" %%  "akka-cluster-metrics"    % akkaVersion,
     "com.typesafe.akka" %%  "akka-multi-node-testkit" % akkaVersion % "test",
 
     "com.typesafe.akka" %%  "akka-testkit"                       % akkaVersion % "test",
@@ -24,6 +26,6 @@ libraryDependencies ++= {
 }
 
 // Assembly settings
-mainClass in Global := Some("com.github.roberveral.dockerakka.MasterMain")
+mainClass in Global := Some("com.github.roberveral.dockerakka.DockerAkka")
 
 jarName in assembly := "docker-akka.jar"
