@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 object DockerAkka extends App with ApiStartup {
   // Creates the Actor System
   implicit val system = ActorSystem("dockerakka")
-  implicit val requestTimeout: Timeout = Timeout(30 seconds)
+  implicit val requestTimeout: Timeout = Timeout(5 seconds)
 
   system.log.info(s"Starting node with roles: ${Cluster(system).selfRoles}")
 

@@ -46,7 +46,7 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
           // POST /services/:service
           // Creates a new service
           entity(as[ServiceDescription]) { sd =>
-            onSuccess(scheduler ? Create(DockerService(service, sd.image, sd.ports.map { case (k, v) => (k.toInt, v.toInt) }), sd.instances)) {
+            onSuccess(scheduler ? Create(DockerService(service, sd.image, sd.ports), sd.instances)) {
               case ServiceCreated(_) => complete(Created)
               case ServiceExists(_) =>
                 complete(BadRequest, s"$name service exists already.")

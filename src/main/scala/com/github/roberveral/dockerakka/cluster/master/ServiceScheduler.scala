@@ -51,9 +51,7 @@ class ServiceScheduler(implicit timeout: Timeout) extends Actor with ActorLoggin
   // Overrides SupervisionStrategy to change to restart strategy.
   // If a ServiceMaster goes down, it will be restarted by handling termination message.
   override def supervisorStrategy: SupervisorStrategy = OneForOneStrategy() {
-    case _ =>
-      log.info("master restarted")
-      Restart
+    case _ => Restart
   }
 
   override def receive: Receive = {
@@ -74,7 +72,6 @@ class ServiceScheduler(implicit timeout: Timeout) extends Actor with ActorLoggin
       child(name).fold(sender() ! ServiceFailed(name))(_ forward ServiceMaster.StopService)
 
     case Status(name) =>
-      log.info(s"Asking status of service $name")
       child(name).fold(sender() ! ServiceFailed(name))(_ forward ServiceMaster.Info)
 
     case Status => sender() ! ServiceList(children.map(_.path.name).toList)

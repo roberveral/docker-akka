@@ -90,7 +90,7 @@ class ServiceWorker(implicit timeout: Timeout) extends Actor with ActorLogging {
 
       // Obtains the port configuration based in the port mapping of the service
       val portConfig: Map[String, util.List[PortBinding]] =
-        service.portMapping.map { case (host, cont) => (cont.toString, List(PortBinding.of("0.0.0.0", host)).asJava) }
+        service.ports.map { port => (port.toString, List(PortBinding.randomPort("0.0.0.0")).asJava) }.toMap
 
       // Creates the Host configuration for the container with the ports configuration
       val hostConfig: HostConfig =
@@ -101,14 +101,14 @@ class ServiceWorker(implicit timeout: Timeout) extends Actor with ActorLogging {
       val containerConfig: ContainerConfig =
         ContainerConfig.builder()
           .image(service.image)
-          .exposedPorts(service.portMapping.values.map(_.toString).toSet.asJava)
+          .exposedPorts(service.ports.map(_.toString).toSet.asJava)
           .hostConfig(hostConfig).build()
 
       // Creates the container of the service
       val containerCreation: Future[ContainerCreation] = Future {
         // Obtains the images (or check if exists)
         dockerClient.pull(service.image)
-        dockerClient.createContainer(containerConfig, service.name)
+        dockerClient.createContainer(containerConfig, service.name + "-" + self.path.name)
       }
       container = Some(containerCreation)
       // Change to running state

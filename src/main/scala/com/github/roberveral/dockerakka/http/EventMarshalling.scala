@@ -7,7 +7,7 @@ import com.github.roberveral.dockerakka.utils.DockerService
 import spray.json._
 
 
-case class ServiceDescription(image: String, ports: Map[String, String], instances: Int) {
+case class ServiceDescription(image: String, ports: List[Int], instances: Int) {
   require(instances > 0)
   require(image.nonEmpty)
 }
