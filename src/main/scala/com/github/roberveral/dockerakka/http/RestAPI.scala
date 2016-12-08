@@ -73,10 +73,10 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
             }
           } ~
           get {
-            // DELETE /services/:service
-            // Destroys a service
+            // GET /services/:service
+            // Gets service information
             onSuccess(scheduler ? Status(service)) {
-              case TaskInfo(e) => complete(OK, e)
+              case ServiceStatus(e) => complete(OK, e)
               case _ => complete(NotFound)
             }
           }

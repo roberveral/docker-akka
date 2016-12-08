@@ -3,6 +3,7 @@ package com.github.roberveral.dockerakka.cluster.master
 import akka.actor.SupervisorStrategy.Restart
 import akka.actor.{Actor, ActorContext, ActorLogging, ActorRef, DeathPactException, OneForOneStrategy, Props, SupervisorStrategy, Terminated}
 import akka.util.Timeout
+import com.github.roberveral.dockerakka.cluster.worker.ServiceWorker.TaskInfo
 import com.github.roberveral.dockerakka.utils.DockerService
 
 /**
@@ -39,6 +40,8 @@ object ServiceScheduler {
   case class ServiceFailed(name: String) extends Response
   // Service list response
   case class ServiceList(services: List[String]) extends Response
+  // Service Status response
+  case class ServiceStatus(instances: List[TaskInfo]) extends Response
 }
 
 class ServiceScheduler(implicit timeout: Timeout) extends Actor with ActorLogging with CreateMaster {
@@ -71,10 +74,10 @@ class ServiceScheduler(implicit timeout: Timeout) extends Actor with ActorLoggin
       child(name).fold(sender() ! ServiceFailed(name))(_ forward ServiceMaster.StopService)
 
     case Status(name) =>
+      log.info(s"Asking status of service $name")
       child(name).fold(sender() ! ServiceFailed(name))(_ forward ServiceMaster.Info)
 
     case Status => sender() ! ServiceList(children.map(_.path.name).toList)
-
   }
 }
 

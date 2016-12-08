@@ -143,12 +143,13 @@ class ServiceWorker(implicit timeout: Timeout) extends Actor with ActorLogging {
       }
 
     case Info =>
-      containerCreation.map((container) => {
+      val info = Await.result(containerCreation.map((container) => {
         // Gets information detail of the container by running Docker inspect
-        val info = dockerClient.inspectContainer(container.id())
-        // Returns information to the sender
-        sender ! TaskInfo(info.toString)
-      })
+        dockerClient.inspectContainer(container.id())
+      }), timeout.duration)
+      log.info(s"Worker ${service.name} sending status")
+      // Returns information to the sender
+      sender() ! TaskInfo(info.toString)
 
     case DockerError(e) =>
       // Remove container info

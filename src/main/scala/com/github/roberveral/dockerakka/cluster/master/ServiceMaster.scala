@@ -7,8 +7,7 @@ import akka.util.Timeout
 import com.github.roberveral.dockerakka.cluster.worker.ServiceWorker
 import com.github.roberveral.dockerakka.utils.DockerService
 
-import scala.collection.immutable.Iterable
-import scala.concurrent.Future
+import scala.concurrent.Await
 import scala.concurrent.duration._
 
 /**
@@ -50,7 +49,8 @@ class ServiceMaster(service: DockerService)(implicit timeout: Timeout) extends A
 
   @scala.throws[Exception](classOf[Exception])
   override def preRestart(reason: Throwable, message: Option[Any]): Unit = {
-    log.info("master prerestart")
+    // Unwatch workers
+    workers.foreach(unwatch)
     // Resend Start message
     self ! StartService(instances)
     super.preRestart(reason, message)
@@ -99,13 +99,14 @@ class ServiceMaster(service: DockerService)(implicit timeout: Timeout) extends A
         context.setReceiveTimeout(timeout.duration)
       } else if (num < instances) {
         // See how many instances to kill (scale-down)
-        val dif = instances - num
+        val dif = running - num
         val kill = workers.take(dif)
         // Kill the instances and update the state
         kill.foreach(unwatch)
         kill.foreach(stop)
         workers = workers -- kill
         instances = num
+        running = workers.size
       }
       sender() ! ServiceScheduler.ServiceOk(service.name)
       log.info(s"Service ${service.name} scaled to $instances instances")
@@ -125,10 +126,17 @@ class ServiceMaster(service: DockerService)(implicit timeout: Timeout) extends A
       // Get the info for all the workers
       import akka.pattern.ask
       import akka.pattern.pipe
+      log.info(s"master for service ${service.name} requesting status")
       // Gets info for all the childern services
-      val childInfo: Iterable[Future[ServiceWorker.TaskInfo]] = workers.map(_.ask(ServiceWorker.Info).mapTo[ServiceWorker.TaskInfo])
+      val childInfo =
+        workers.map(worker => {
+          Await.result(worker.ask(ServiceWorker.Info).mapTo[ServiceWorker.TaskInfo], timeout.duration)
+        })
+      sender() ! ServiceScheduler.ServiceStatus(childInfo.toList)
       // Pipes the resulting list to the sender
-      pipe(Future.sequence(childInfo)) to sender()
+      //Future.sequence(childInfo).map(f => ServiceScheduler.ServiceStatus(f.toList)).
+      //recover {case _ => ServiceScheduler.ServiceFailed(service.name) }.
+      //pipeTo(sender())
 
     case ReceiveTimeout =>
       if (workers.isEmpty) {
