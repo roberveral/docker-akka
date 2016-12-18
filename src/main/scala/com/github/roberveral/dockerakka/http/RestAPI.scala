@@ -12,7 +12,10 @@ import akka.pattern.ask
 
 
 /**
-  * Created by roberveral on 6/12/16.
+  * Class with the Rest API of the service
+  *
+  * @param timeout timeout used for API responses
+  * @author Rober Veral (roberveral@gmail.com)
   */
 class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarshalling {
 
@@ -20,13 +23,25 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
   import ServiceScheduler._
   import StatusCodes._
 
+  /**
+    * Creates a ServiceScheduler to send requests to
+    *
+    * @param timeout timeout used for API responses
+    * @return
+    */
   def createScheduler(implicit timeout: Timeout): ActorRef = system.actorOf(ServiceScheduler.props, "scheduler")
 
   // Creates the Scheduler instance
   val scheduler: ActorRef = createScheduler
 
+  /**
+    * Defines the routes (endpoints) of the Rest API
+    *
+    * @return routes of the api
+    */
   def routes: Route = servicesRoute ~ serviceRoute
 
+  // Route to get info of all the running services
   def servicesRoute: Route =
     pathPrefix("services") {
       pathEndOrSingleSlash {
@@ -39,6 +54,7 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
       }
     }
 
+  // Route to operate a concrete service
   def serviceRoute: Route =
     pathPrefix("services" / Segment) { service =>
       pathEndOrSingleSlash {
@@ -83,6 +99,4 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
       }
 
     }
-
-
 }

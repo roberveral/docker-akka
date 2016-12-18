@@ -3,14 +3,14 @@ package com.github.roberveral.dockerakka
 import akka.actor.ActorSystem
 import akka.cluster.Cluster
 import akka.util.Timeout
-import com.github.roberveral.dockerakka.cluster.master.ServiceScheduler
 import com.github.roberveral.dockerakka.http.{ApiStartup, RestAPI}
-import com.github.roberveral.dockerakka.utils.DockerService
 
 import scala.concurrent.duration._
 
 /**
-  * Created by roberveral on 6/12/16.
+  * Main class for the DockerAkka application
+  *
+  * @author Rober Veral (roberveral@gmail.com)
   */
 object DockerAkka extends App with ApiStartup {
   // Creates the Actor System

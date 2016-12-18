@@ -7,6 +7,6 @@ package com.github.roberveral.dockerakka.utils
   * @param image Docker image to use for the service.
   * @param ports Ports exposed to the host
   *
-  * Created by roberveral on 27/11/16.
+  * @author Rober Veral (roberveral@gmail.com)
   */
 case class DockerService(name: String, image: String, ports: List[Int])

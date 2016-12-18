@@ -36,7 +36,6 @@ libraryDependencies ++= {
     "ch.qos.logback"    %   "logback-classic"                    % "1.1.6",
     "com.spotify" % "docker-client" % "6.1.1",
     "de.heikoseeberger" %% "constructr" % "0.15.0",
-    //"de.heikoseeberger" %% "constructr-coordination-etcd" % "0.15.0"
     "com.tecsisa" %% "constructr-coordination-consul" % "0.5.1"
   )
 }
