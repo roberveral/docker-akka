@@ -1,6 +1,5 @@
 package com.github.roberveral.dockerakka.cluster.worker
 
-import java.net.{Inet4Address, InetAddress}
 import java.util
 
 import akka.actor.{Actor, ActorLogging, ActorRef, Kill, Props, ReceiveTimeout}
@@ -8,6 +7,8 @@ import akka.util.Timeout
 import com.github.roberveral.dockerakka.cluster.master.ServiceMaster
 import com.github.roberveral.dockerakka.cluster.master.ServiceMaster.WorkerFailed
 import com.github.roberveral.dockerakka.utils.DockerService
+import com.google.common.net.HostAndPort
+import com.orbitz.consul.Consul
 import com.spotify.docker.client.DefaultDockerClient
 import com.spotify.docker.client.DockerClient.ListContainersParam
 import com.spotify.docker.client.messages._
@@ -16,7 +17,7 @@ import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
 import scala.concurrent.duration.{Duration, _}
 import scala.concurrent.{Await, Future}
-import scala.util.Try
+import scala.util.{Failure, Success, Try}
 
 /**
   * Companion object for a ServiceWorker. It contains the methods for creating a new ServiceWorker actor
@@ -126,6 +127,16 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
   }
 
   /**
+    * Gets a Consul Agent reference for the given worker
+    * @return consul object referencing the agent
+    */
+  private def getConsulAgent: Consul = {
+    val hostname = context.system.settings.config.getString("constructr.coordination.host")
+    val port = context.system.settings.config.getString("constructr.coordination.port")
+    Consul.builder().withUrl(s"http://$hostname:$port").build()
+  }
+
+  /**
     * Gets the container id of a previously running container.
     *
     * @param dockerClient the client to connect with Docker
@@ -151,6 +162,14 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
     * @param container    container id to remove
     */
   private def removeContainer(dockerClient: DefaultDockerClient, container: String) = {
+    // Deregisters the service in Consul
+    val consul = getConsulAgent
+    // Get container port binding
+    val ports = dockerClient.inspectContainer(container).networkSettings().ports().toMap
+    // Register each service port in Consul
+    ports.foreach { case (containerPort, bindList) => bindList.toList.foreach(_ => {
+      consul.agentClient().deregister(s"$getWorkerName.${service.name}.$containerPort")
+    })}
     // Kill the running container
     dockerClient.killContainer(container)
     // Remove the container
@@ -262,7 +281,24 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
       client.foreach(dockerClient =>
         containerId.map(container => container.map((id) => {
           // Starts the container (avoiding failure in case it is started)
-          Try(dockerClient.startContainer(id))
+          Try(dockerClient.startContainer(id)) match {
+            case Success(_) =>
+              // Registers the service in Consul
+              val consul = getConsulAgent
+              // Get container port binding
+              val ports = dockerClient.inspectContainer(id).networkSettings().ports().toMap
+              // Register each service port in Consul
+              ports.foreach { case (containerPort, bindList) => bindList.toList.foreach(binding => {
+                consul.agentClient().register(binding.hostPort().toInt,
+                  HostAndPort.fromParts(context.system.settings.config.getString("akka.remote.netty.tcp.hostname"),
+                    binding.hostPort().toInt),
+                  30L,
+                  service.name,
+                  s"$getWorkerName.${service.name}.$containerPort",
+                  "docker-akka")
+              })}
+            case Failure(_) => // Nothing to do, is already started
+          }
           // Attach to its result
           val res = dockerClient.waitContainer(id)
           // In case of error throw a Exception

@@ -11,6 +11,11 @@ resolvers += Resolver.bintrayRepo("hseeberger", "maven")
 
 resolvers += Resolver.bintrayRepo("tecsisa", "maven-bintray-repo")
 
+resolvers += Resolver.jcenterRepo
+
+enablePlugins(JavaAppPackaging)
+
+scriptClasspath += "../conf"
 
 libraryDependencies ++= {
   val akkaVersion = "2.4.14"
@@ -36,8 +41,14 @@ libraryDependencies ++= {
     "ch.qos.logback"    %   "logback-classic"                    % "1.1.6",
     "com.spotify" % "docker-client" % "6.1.1",
     "de.heikoseeberger" %% "constructr" % "0.15.0",
-    "com.tecsisa" %% "constructr-coordination-consul" % "0.5.1"
+    "com.tecsisa" %% "constructr-coordination-consul" % "0.5.1",
+    "com.orbitz.consul" % "consul-client" % "0.13.6"
   )
+}
+
+assemblyMergeStrategy in assembly := {
+  case PathList("META-INF", xs @ _*) => MergeStrategy.discard
+  case x => MergeStrategy.first
 }
 
 // Assembly settings

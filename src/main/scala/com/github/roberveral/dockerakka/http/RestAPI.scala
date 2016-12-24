@@ -39,7 +39,7 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
     *
     * @return routes of the api
     */
-  def routes: Route = servicesRoute ~ serviceRoute
+  def routes: Route = servicesRoute ~ serviceRoute ~ memberRoute
 
   // Route to get info of all the running services
   def servicesRoute: Route =
@@ -97,6 +97,17 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
             }
           }
       }
+    }
 
+  // Route to get cluster state
+  def memberRoute: Route =
+    pathPrefix("members") {
+      pathEndOrSingleSlash {
+        get {
+          val members = akka.cluster.Cluster(system).state.members.map((member) =>
+            ClusterMember(member.uniqueAddress.address.toString, member.roles.toList, member.status.toString))
+          complete(OK, members)
+        }
+      }
     }
 }
