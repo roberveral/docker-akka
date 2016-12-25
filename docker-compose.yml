@@ -3,12 +3,12 @@ services:
   consul1:
     image: "consul:latest"
     container_name: "consul1"
-    hostname: "consul1"
+    network_mode: "host"
     ports:
       - "8400:8400"
       - "8500:8500"
       - "8600:53"
-    command: "agent -server -bootstrap -client=0.0.0.0 -ui"
+    command: "agent -server -bootstrap -client=0.0.0.0 -bind=192.168.1.65 -ui"
   cassandra:
       image: "cassandra:latest"
       container_name: "dockerakka-cassandra"

@@ -6,12 +6,12 @@ import akka.actor.{Actor, ActorLogging, ActorRef, Kill, Props, ReceiveTimeout}
 import akka.util.Timeout
 import com.github.roberveral.dockerakka.cluster.master.ServiceMaster
 import com.github.roberveral.dockerakka.cluster.master.ServiceMaster.WorkerFailed
-import com.github.roberveral.dockerakka.utils.DockerService
+import com.github.roberveral.dockerakka.utils.{ConsulAgent, DockerService}
 import com.google.common.net.HostAndPort
-import com.orbitz.consul.Consul
 import com.spotify.docker.client.DefaultDockerClient
 import com.spotify.docker.client.DockerClient.ListContainersParam
 import com.spotify.docker.client.messages._
+import com.typesafe.config.Config
 
 import scala.collection.JavaConversions._
 import scala.collection.JavaConverters._
@@ -103,10 +103,15 @@ object ServiceWorker {
   * @author Rober Veral (roberveral@gmail.com)
   * @see com.github.roberveral.dockerakka.cluster.worker.ServiceWorker
   */
-class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends Actor with ActorLogging {
+class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends Actor
+  with ActorLogging
+  with ConsulAgent {
 
   import ServiceWorker._
   import context._
+
+  // Defines an implicit Configuration for interacting with Consul
+  implicit val configuration: Config = context.system.settings.config
 
   // Keep track of the docker client
   val client: Option[DefaultDockerClient] = Some(new DefaultDockerClient("unix:///var/run/docker.sock"))
@@ -124,16 +129,6 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
     val hostname = context.system.settings.config.getString("akka.remote.netty.tcp.hostname")
     val port = context.system.settings.config.getString("akka.remote.netty.tcp.port")
     s"$hostname:$port"
-  }
-
-  /**
-    * Gets a Consul Agent reference for the given worker
-    * @return consul object referencing the agent
-    */
-  private def getConsulAgent: Consul = {
-    val hostname = context.system.settings.config.getString("constructr.coordination.host")
-    val port = context.system.settings.config.getString("constructr.coordination.port")
-    Consul.builder().withUrl(s"http://$hostname:$port").build()
   }
 
   /**
@@ -169,7 +164,8 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
     // Register each service port in Consul
     ports.foreach { case (containerPort, bindList) => bindList.toList.foreach(_ => {
       consul.agentClient().deregister(s"$getWorkerName.${service.name}.$containerPort")
-    })}
+    })
+    }
     // Kill the running container
     dockerClient.killContainer(container)
     // Remove the container
@@ -292,11 +288,12 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
                 consul.agentClient().register(binding.hostPort().toInt,
                   HostAndPort.fromParts(context.system.settings.config.getString("akka.remote.netty.tcp.hostname"),
                     binding.hostPort().toInt),
-                  30L,
+                  10L,
                   service.name,
                   s"$getWorkerName.${service.name}.$containerPort",
-                  "docker-akka")
-              })}
+                  "docker-akka", "services")
+              })
+              }
             case Failure(_) => // Nothing to do, is already started
           }
           // Attach to its result

@@ -40,8 +40,6 @@ libraryDependencies ++= {
     "com.typesafe.akka" %%  "akka-http-spray-json-experimental"  % "2.4.11",
     "ch.qos.logback"    %   "logback-classic"                    % "1.1.6",
     "com.spotify" % "docker-client" % "6.1.1",
-    "de.heikoseeberger" %% "constructr" % "0.15.0",
-    "com.tecsisa" %% "constructr-coordination-consul" % "0.5.1",
     "com.orbitz.consul" % "consul-client" % "0.13.6"
   )
 }

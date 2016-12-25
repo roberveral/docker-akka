@@ -335,12 +335,12 @@ class ServiceMaster(implicit timeout: Timeout) extends PersistentActor with Acto
       workers foreach unwatch
       // End all the workers
       workers foreach (_ ! ServiceWorker.Cancel)
+      // Save empty snapshot
+      saveSnapshot(Snapshot(service.get, 0))
       // Send an OK response
       sender() ! ServiceOk(service.get.name)
       // End the master
-      self ! PoisonPill
-      // Save empty snapshot
-      saveSnapshot(Snapshot(service.get, 0))
+      context.stop(self)
       log.info(s"Service ${service.get.name} stopped")
 
     case Info(_) =>
