@@ -65,7 +65,7 @@ class RestAPI(implicit system: ActorSystem, timeout: Timeout) extends EventMarsh
             onSuccess(scheduler ? StartService(service.name, DockerService(service, sd.image, sd.ports), sd.instances)) {
               case ServiceCreated(_) => complete(Created)
               case ServiceExists(_) =>
-                complete(BadRequest, s"$name service exists already.")
+                complete(BadRequest, s"${service.name} service exists already.")
               case _ => complete(InternalServerError)
             }
           }

@@ -118,7 +118,7 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
   // Keep track of the container created. Check if a previous container exists and get id
   var containerId: Future[Option[String]] = getContainerId(client.get, service.name)
   // Set a timeout awaiting for communication from the master
-  setReceiveTimeout(60 seconds)
+  setReceiveTimeout(10 seconds)
 
   /**
     * Gets the unique worker name based in the hostname and port defined in the configuration
@@ -162,10 +162,11 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
     // Get container port binding
     val ports = dockerClient.inspectContainer(container).networkSettings().ports().toMap
     // Register each service port in Consul
-    ports.foreach { case (containerPort, bindList) => bindList.toList.foreach(_ => {
-      consul.agentClient().deregister(s"$getWorkerName.${service.name}.$containerPort")
-    })
-    }
+    ports.filter { case (containerPort, bindList) => bindList != null }.
+      foreach { case (containerPort, bindList) => bindList.toList.foreach(_ => {
+        consul.agentClient().deregister(s"$getWorkerName.${service.name}.$containerPort")
+      })
+      }
     // Kill the running container
     dockerClient.killContainer(container)
     // Remove the container
@@ -189,8 +190,6 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
       become(ready(name, master))
       // Tell Master that the offer is accepted
       master ! ServiceMaster.ServiceAccepted(name, self)
-      // Monitor master
-      watch(master)
       // Set a timeout awaiting for tasks to perform
       setReceiveTimeout(timeout.duration)
       log.info(s"Worker Accepted Service $name from $master. Switching to READY")
@@ -284,16 +283,17 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
               // Get container port binding
               val ports = dockerClient.inspectContainer(id).networkSettings().ports().toMap
               // Register each service port in Consul
-              ports.foreach { case (containerPort, bindList) => bindList.toList.foreach(binding => {
-                consul.agentClient().register(binding.hostPort().toInt,
-                  HostAndPort.fromParts(context.system.settings.config.getString("akka.remote.netty.tcp.hostname"),
-                    binding.hostPort().toInt),
-                  10L,
-                  service.name,
-                  s"$getWorkerName.${service.name}.$containerPort",
-                  "docker-akka", "services")
-              })
-              }
+              ports.filter { case (containerPort, bindList) => bindList != null }.
+                foreach { case (containerPort, bindList) => bindList.toList.foreach(binding => {
+                  consul.agentClient().register(binding.hostPort().toInt,
+                    HostAndPort.fromParts(context.system.settings.config.getString("akka.remote.netty.tcp.hostname"),
+                      binding.hostPort().toInt),
+                    10L,
+                    service.name,
+                    s"$getWorkerName.${service.name}.$containerPort",
+                    "docker-akka", "services")
+                })
+                }
             case Failure(_) => // Nothing to do, is already started
           }
           // Attach to its result
@@ -304,7 +304,9 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
         })).onFailure {
           // In case of failure, a DockerError message is sended to the actor to throw the failure
           // from the main thread, allowing supervision
-          case e: Exception => self ! DockerError(e)
+          case e: Exception =>
+            log.error(s"Exception $e")
+            self ! DockerError(e)
         })
 
     case Info =>
@@ -339,8 +341,8 @@ class ServiceWorker(service: DockerService)(implicit timeout: Timeout) extends A
         None
       }
       log.info("{} destroyed.", service.name)
-      // Finally, kill the actor
-      self ! Kill
+      become(idle)
+      sender() ! "DONE"
   }
 
   @scala.throws[Exception](classOf[Exception])

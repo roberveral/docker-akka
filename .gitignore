@@ -2,3 +2,6 @@ target/
 .idea
 project/project/
 project/target/
+ansible/.vagrant
+*.retry
+ansible/roles/docker-akka/files/dockerakka

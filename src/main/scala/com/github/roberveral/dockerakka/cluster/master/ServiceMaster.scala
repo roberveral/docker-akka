@@ -12,7 +12,7 @@ import com.github.roberveral.dockerakka.cluster.worker.ServiceWorker
 import com.github.roberveral.dockerakka.cluster.worker.ServiceWorker.TaskInfo
 import com.github.roberveral.dockerakka.utils.DockerService
 
-import scala.concurrent.Future
+import scala.concurrent.{Await, Future}
 import scala.concurrent.duration._
 
 /**
@@ -329,12 +329,13 @@ class ServiceMaster(implicit timeout: Timeout) extends PersistentActor with Acto
       log.info(s"Service ${service.get.name} scaled to $num instances")
 
     case StopService(_) =>
+      import akka.pattern.ask
       // Persist the event in the journal and update the state
       persist(ServiceStopped)(updateState)
       // Unwatch and end all the workers
       workers foreach unwatch
       // End all the workers
-      workers foreach (_ ! ServiceWorker.Cancel)
+      workers foreach (worker => Await.result(worker ? ServiceWorker.Cancel, timeout.duration))
       // Save empty snapshot
       saveSnapshot(Snapshot(service.get, 0))
       // Send an OK response
@@ -379,8 +380,10 @@ class ServiceMaster(implicit timeout: Timeout) extends PersistentActor with Acto
     case ServiceStopped =>
       // An Stop event destroys the actor, similar to come back to idle state
       become(idle)
-    case cmd: Event => updateState(cmd)
-    case SnapshotOffer(_, _) => become(idle)
+    case cmd: Event =>
+      updateState(cmd)
+    case SnapshotOffer(_, _) =>
+      become(idle)
   }
 
   // Normal receive function
