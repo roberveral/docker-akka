@@ -1,0 +1,6 @@
+# Enable forward lookup of the 'consul' domain:
+server=/consul/127.0.0.1#8600
+
+# Set the size of dnsmasq's cache. The default is 150 names. Setting the
+# cache size to zero disables caching.
+cache-size=65536

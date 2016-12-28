@@ -1,0 +1,27 @@
+# -*- mode: ruby -*-
+# vi: set ft=ruby :
+
+NUM_MASTER = 3
+NUM_WORKER = 3
+
+Vagrant.configure("2") do |config|
+  config.vm.box = "bento/centos-7.2"
+  config.vm.provider "virtualbox" do |v|
+    v.memory = 1024
+    v.cpus = 2
+  end
+  # Master Definition
+  (1..NUM_MASTER).each do |i|
+    config.vm.define "master-#{i}" do |node|
+      node.vm.hostname = "master-#{i}"
+      node.vm.network "private_network", ip: "192.168.33.1#{i}"
+    end
+  end
+  # Worker Definition
+  (1..NUM_WORKER).each do |i|
+    config.vm.define "worker-#{i}" do |node|
+      node.vm.hostname = "worker-#{i}"
+      node.vm.network "private_network", ip: "192.168.33.2#{i}"
+    end
+  end
+end

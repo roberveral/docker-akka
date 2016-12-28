@@ -1,0 +1,10 @@
+---
+
+- include: docker.yml
+
+- include: consul.yml
+
+- include: cassandra.yml
+  when: cassandra_server
+
+- include: dockerakka.yml

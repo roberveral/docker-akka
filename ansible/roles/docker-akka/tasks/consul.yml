@@ -1,0 +1,19 @@
+---
+
+- name: "[Consul] Start Consul in a Docker container"
+  docker_container:
+    name: consul
+    image: consul:latest
+    restart_policy: always
+    network_mode: host
+    command: "agent {% if consul_server %}-server -ui{% endif %} {% if consul_bootstrap %}-bootstrap{% endif %} -client=0.0.0.0 -bind={{ hostvars[inventory_hostname]['ansible_' + default_iface]['ipv4']['address'] }} {% if not consul_bootstrap %}-join={{ consul_bootstrap_ip }}{% endif %}"
+  tags: dockerakka, consul
+
+- name: "[Consul] Install Dnsmasq package"
+  yum: name=dnsmasq state=present
+  tags: dnsmasq, dockerakka, consul
+
+- name: "[Consul] Dnsmasq setup"
+  copy: src=10-consul dest=/etc/dnsmasq.d/10-consul owner=root group=root mode=0644
+  notify: "[Consul] Restart dnsmasq"
+  tags: dnsmasq, dockerakka, consul

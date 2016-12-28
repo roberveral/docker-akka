@@ -1,0 +1,50 @@
+---
+
+- name: "[Docker] Install Docker RHEL repo"
+  copy:
+    owner=root
+    src=files/docker.repo
+    dest=/etc/yum.repos.d/docker.repo
+  tags: docker, dockerakka
+
+- name: "[Docker] Install Docker"
+  yum: name="{{ item }}" state=latest
+  with_items:
+    - docker-engine
+  tags: docker, dockerakka
+
+- name: "[Docker] Make sure pip is installed"
+  shell: curl -sSL https://bootstrap.pypa.io/get-pip.py | python
+  tags: docker, dockerakka
+
+- name: "[Docker] Install docker-compose and docker-py through pip"
+  pip: name="{{ item }}" state=latest
+  with_items:
+    - docker-compose
+    - docker-py
+  tags: docker, dockerakka
+
+- name: "[Docker] Enable overlay"
+  lineinfile: dest=/etc/modules-load.d/overlay.conf regexp="^overlay" line=overlay state=present create=yes
+  tags: docker, dockerakka
+
+- name: "[Docker] Load kernel module to enable overlay"
+  modprobe: name=overlay state=present
+  tags: docker, dockerakka
+
+- name: "[Docker] Ensure /etc/systemd/system/docker.service.d exists"
+  file: path=/etc/systemd/system/docker.service.d state=directory
+  tags: docker, dockerakka
+
+- name: "[Docker] Configure Docker to use overlay storage driver"
+  template: src=override.conf.j2 dest=/etc/systemd/system/docker.service.d/override.conf
+  tags: docker, dockerakka
+  notify:
+    - "[Docker] daemon reload"
+    - "[Docker] Restart dockerd"
+
+- meta: flush_handlers
+
+- name: "[Docker] Make sure Docker is started"
+  service: name=docker state=started enabled=yes
+  tags: docker, dockerakka

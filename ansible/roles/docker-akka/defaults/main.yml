@@ -1,0 +1,13 @@
+---
+
+default_iface: "eth0"
+
+# Consul defaults
+consul_server: false
+consul_bootstrap: false
+consul_bootstrap_ip: 0.0.0.0
+
+# Cassandra defaults
+cassandra_seed_ip: 0.0.0.0
+cassandra_server: false
+cassandra_ip: 0.0.0.0

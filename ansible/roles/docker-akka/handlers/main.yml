@@ -1,0 +1,26 @@
+---
+
+- name: "[Docker] daemon reload"
+  shell: systemctl daemon-reload
+  tags: docker, dockerakka
+
+- name: "[Docker] Restart dockerd"
+  service:
+    name: docker
+    enabled: yes
+    state: restarted
+  tags: docker, dockerakka
+
+- name: "[DockerAkka] Restart service"
+  service:
+    name: dockerakka
+    enabled: yes
+    state: restarted
+  tags: install, configure, dockerakka
+
+- name: "[Consul] Restart dnsmasq"
+  service:
+    name: dnsmasq
+    enabled: yes
+    state: restarted
+  tags: dnsmasq, dockerakka, consul

@@ -1,0 +1,24 @@
+master-1 ansible_host=192.168.33.11 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/master-1/virtualbox/private_key
+master-2 ansible_host=192.168.33.12 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/master-2/virtualbox/private_key
+master-3 ansible_host=192.168.33.13 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/master-3/virtualbox/private_key
+worker-1 ansible_host=192.168.33.21 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/worker-1/virtualbox/private_key
+worker-2 ansible_host=192.168.33.22 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/worker-2/virtualbox/private_key
+worker-3 ansible_host=192.168.33.23 ansible_user=vagrant ansible_ssh_private_key_file=./.vagrant/machines/worker-3/virtualbox/private_key
+
+[all:vars]
+default_iface=enp0s8
+consul_bootstrap_ip=192.168.33.11
+cassandra_ip=192.168.33.11
+
+[masters]
+master-1 consul_bootstrap=true cassandra_server=true
+master-2
+master-3
+
+[masters:vars]
+consul_server=true
+
+[workers]
+worker-1
+worker-2
+worker-3

@@ -1,0 +1,14 @@
+---
+
+- name: "[Cassandra] Start Cassandra in a Docker container"
+  docker_container:
+    name: cassandra
+    image: cassandra:latest
+    restart_policy: always
+    network_mode: host
+    ports:
+      - "7000:7000"
+    env:
+        CASSANDRA_BROADCAST_ADDRESS: "{{ hostvars[inventory_hostname]['ansible_' + default_iface]['ipv4']['address'] }}"
+        #CASSANDRA_SEEDS: "{{ cassandra_seed_ip }}"
+  tags: dockerakka, cassandra

@@ -1,0 +1,37 @@
+---
+
+- name: "[DockerAkka] Install Java"
+  yum: name=java-1.8.0-openjdk state=present
+  tags: dockerakka, install
+
+- name: "[DockerAkka] Ensure destination directories exist"
+  file: path="/opt/{{ item }}" state=directory
+  with_items:
+    - dockerakka
+    - dockerakka/bin
+    - dockerakka/lib
+    - dockerakka/conf
+  tags: dockerakka, install
+
+- name: "[DockerAkka] Copy application files"
+  copy: src=dockerakka/ dest=/opt/dockerakka mode=0755
+  tags: dockerakka, install
+  notify: "[DockerAkka] Restart service"
+
+- name: "[DockerAkka] Configure DockerAkka"
+  template: src=application.conf dest=/opt/dockerakka/conf/application.conf mode=0755
+  tags: dockerakka, install, configure
+  notify: "[DockerAkka] Restart service"
+
+- name: "[DockerAkka] Copy Unit file to systemd"
+  copy: src=dockerakka.service dest=/etc/systemd/system/dockerakka.service mode=0664
+  tags: dockerakka, install, configure
+  notify:
+    - "[Docker] daemon reload"
+    - "[DockerAkka] Restart service"
+
+- meta: flush_handlers
+
+- name: "[DockerAkka] Make sure dockerakka is started"
+  service: name=dockerakka state=started enabled=yes
+  tags: dockerakka, install, configure

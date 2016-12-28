@@ -1,0 +1,10 @@
+[Unit]
+Description=docker-akka container orchestrator
+After=docker.service
+
+[Service]
+ExecStart=/opt/dockerakka/bin/docker-akka
+Type=simple
+
+[Install]
+WantedBy=multi-user.target
