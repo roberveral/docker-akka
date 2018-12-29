@@ -31,9 +31,9 @@ and send messages to them.
 
 Each node in the cluster has one **role**, which could be either *master* or *worker*.
 
-For being statefull and fault-tolerant the master nodes have an event journal persisted in
+For being stateful and fault-tolerant the master nodes have an event journal persisted in
 [Cassandra] using [Akka Persistence]. Saving the event journal allow *ServiceMaster* actor
-to be moved to another node or recovered from a crash without loosing its state, which makes
+to be moved to another node or recovered from a crash without losing its state, which makes
 the system resilient.
 
 The previous diagram shows the architecture of the orchestrator including its actor
